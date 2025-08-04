@@ -1,52 +1,73 @@
 package dao;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import DB.DBconnection;
 import model.Student;
+import java.util.ArrayList;
+import java.util.List;
 
-public class StudentDao implements StudentDaoInterface{
+public class StudentDao implements StudentDaoInterface {
+
+    private List<Student> students = new ArrayList<>();
+    private int rollCounter = 1; // To auto-increment roll numbers
 
     @Override
     public boolean insertStudent(Student s) {
-        boolean flag=false;
-        try{
-        Connection con=DBconnection.createConnection();
-        String query="insert into student_details (sname,clgName,city,percentage) value (?,?,?,?)";
-        PreparedStatement pst=con.prepareStatement(query);
-        pst.setString(1, s.getName());
-        pst.setString(2, s.getClgName());
-        pst.setString(3, s.getCity());
-        pst.setDouble(4, s.getPercentage());
-        pst.executeUpdate();
-        flag=true;
-    }
-        catch(Exception ex){
-            ex.printStackTrace();
-        }
-        return flag;
+        s.setRollNum(rollCounter++);
+        students.add(s);
+        return true;
     }
 
     @Override
     public boolean delete(int roll) {
-        return false;
+        return students.removeIf(student -> student.getRollNum() == roll);
     }
 
     @Override
     public boolean update(int roll, String update, int ch, Student s) {
+        for (Student student : students) {
+            if (student.getRollNum() == roll) {
+                switch (ch) {
+                    case 1:
+                        student.setName(update);
+                        break;
+                    case 2:
+                        student.setClgName(update);
+                        break;
+                    case 3:
+                        student.setCity(update);
+                        break;
+                    case 4:
+                        student.setPercentage(Double.parseDouble(update));
+                        break;
+                    default:
+                        return false;
+                }
+                return true;
+            }
+        }
         return false;
-         }
+    }
 
     @Override
     public void showAllStudent() {
+        if (students.isEmpty()) {
+            System.out.println("No students found.");
+            return;
         }
+        System.out.println("List of All Students:");
+        for (Student s : students) {
+            System.out.println(s);
+        }
+    }
 
     @Override
     public boolean showStudentById(int roll) {
-        return false;
+        for (Student s : students) {
+            if (s.getRollNum() == roll) {
+                System.out.println(s);
+                return true;
+            }
         }
-
-    
-
+        System.out.println("Student not found with roll number: " + roll);
+        return false;
+    }
 }
-
