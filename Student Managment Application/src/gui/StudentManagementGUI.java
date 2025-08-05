@@ -6,6 +6,8 @@ import model.Student;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.event.MouseInputAdapter;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
@@ -64,6 +66,14 @@ public class StudentManagementGUI extends JFrame {
 
         mainPanel.add(sidePanel, BorderLayout.WEST);
 
+        // Search Panel
+        JPanel searchPanel = new JPanel();
+        JTextField searchField = new JTextField(20);
+        // Removed criteria dropdown for simplified search bar
+        searchPanel.add(new JLabel("Search:"));
+        searchPanel.add(searchField);
+        mainPanel.add(searchPanel, BorderLayout.NORTH);
+
         // Table to display students
         tableModel = new DefaultTableModel(new Object[]{"Roll No", "Name", "College", "City", "Percentage"}, 0) {
             @Override
@@ -71,17 +81,36 @@ public class StudentManagementGUI extends JFrame {
                 return false;
             }
         };
+
         studentTable = new JTable(tableModel);
+        // Sorting disabled by not setting row sorter
         studentTable.setRowHeight(32);
         studentTable.setFont(new Font("Segoe UI", Font.PLAIN, 15));
         studentTable.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 16));
         studentTable.getTableHeader().setBackground(new Color(220, 220, 220));
         studentTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
+        // Disable column reordering and remove sorting arrows from UI
+        studentTable.getTableHeader().setReorderingAllowed(false);
+        studentTable.getTableHeader().setDefaultRenderer(new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
+                                                           boolean hasFocus, int row, int column) {
+                JLabel label = new JLabel(value.toString());
+                label.setFont(new Font("Segoe UI", Font.BOLD, 16));
+                label.setHorizontalAlignment(SwingConstants.CENTER);
+                label.setBackground(new Color(220, 220, 220));
+                label.setOpaque(true);
+                label.setBorder(BorderFactory.createEmptyBorder());
+                return label;
+            }
+        });
+
         // Zebra striping & center align percentage and roll columns
         studentTable.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
             @Override
-            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
+                                                           boolean hasFocus, int row, int column) {
                 Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
                 if (!isSelected) {
                     c.setBackground(row % 2 == 0 ? Color.WHITE : new Color(230, 240, 255));
@@ -98,7 +127,8 @@ public class StudentManagementGUI extends JFrame {
         });
 
         JScrollPane scrollPane = new JScrollPane(studentTable);
-        scrollPane.setBorder(BorderFactory.createTitledBorder(BorderFactory.createLineBorder(new Color(33, 150, 243), 2), "Student List", 0, 0, new Font("Segoe UI", Font.BOLD, 16), new Color(33, 150, 243)));
+        scrollPane.setBorder(BorderFactory.createTitledBorder(BorderFactory.createLineBorder(new Color(33, 150, 243), 2),
+                "Student List", 0, 0, new Font("Segoe UI", Font.BOLD, 16), new Color(33, 150, 243)));
         mainPanel.add(scrollPane, BorderLayout.CENTER);
 
         // Status bar
@@ -119,6 +149,45 @@ public class StudentManagementGUI extends JFrame {
         });
         updateButton.addActionListener(e -> showUpdateStudentDialog());
         deleteButton.addActionListener(e -> deleteSelectedStudent());
+
+        // Search filter implementation: update table as user types
+        searchField.getDocument().addDocumentListener(new DocumentListener() {
+            public void changedUpdate(DocumentEvent e) {
+                filter();
+            }
+            public void removeUpdate(DocumentEvent e) {
+                filter();
+            }
+            public void insertUpdate(DocumentEvent e) {
+                filter();
+            }
+            public void filter() {
+                String query = searchField.getText().toLowerCase();
+
+                List<Student> allStudents = getAllStudentsForTable();
+                List<Student> filtered = new ArrayList<>();
+
+                for (Student s : allStudents) {
+                    if (s.getName().toLowerCase().contains(query) ||
+                        Integer.toString(s.getRollNum()).contains(query) ||
+                        s.getClgName().toLowerCase().contains(query) ||
+                        s.getCity().toLowerCase().contains(query)) {
+                        filtered.add(s);
+                    }
+                }
+
+                tableModel.setRowCount(0);
+                for (Student s : filtered) {
+                    tableModel.addRow(new Object[]{
+                            s.getRollNum(),
+                            s.getName(),
+                            s.getClgName(),
+                            s.getCity(),
+                            String.format("%.2f", s.getPercentage())
+                    });
+                }
+            }
+        });
 
         setContentPane(mainPanel);
     }
@@ -143,9 +212,13 @@ public class StudentManagementGUI extends JFrame {
 
             addMouseListener(new MouseInputAdapter() {
                 @Override
-                public void mouseEntered(MouseEvent e) { setBackground(hoverColor); }
+                public void mouseEntered(MouseEvent e) {
+                    setBackground(hoverColor);
+                }
                 @Override
-                public void mouseExited(MouseEvent e) { setBackground(bgColor); }
+                public void mouseExited(MouseEvent e) {
+                    setBackground(bgColor);
+                }
             });
         }
 
@@ -166,7 +239,7 @@ public class StudentManagementGUI extends JFrame {
         JTextField clgField = new JTextField();
         JTextField cityField = new JTextField();
         JTextField percField = new JTextField();
-        JPanel panel = new JPanel(new GridLayout(0, 1, 8, 7));
+        JPanel panel = new JPanel(new GridLayout(0,1,8,7));
         panel.add(new JLabel("Name:"));
         panel.add(nameField);
         panel.add(new JLabel("College:"));
@@ -178,20 +251,20 @@ public class StudentManagementGUI extends JFrame {
 
         int result = JOptionPane.showConfirmDialog(this, panel, "Add New Student", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
 
-        if (result == JOptionPane.OK_OPTION) {
+        if(result == JOptionPane.OK_OPTION) {
             try {
                 String name = nameField.getText().trim();
                 String clg = clgField.getText().trim();
                 String city = cityField.getText().trim();
                 double perc = Double.parseDouble(percField.getText().trim());
-                if (name.isEmpty() || clg.isEmpty() || city.isEmpty()) throw new IllegalArgumentException("All fields are required.");
+                if(name.isEmpty() || clg.isEmpty() || city.isEmpty()) throw new IllegalArgumentException("All fields are required.");
                 Student s = new Student(name, clg, city, perc);
                 dao.insertStudent(s);
-                showStatus("Student \"" + name + "\" added successfully!");
+                showStatus("Student \""+name+"\" added successfully!");
                 refreshStudentTable();
-            } catch (Exception ex) {
+            } catch(Exception ex) {
                 showStatus("Invalid input. Please check your entries.");
-                JOptionPane.showMessageDialog(this, "Invalid input: " + ex.getMessage(), "Input Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Invalid input: "+ex.getMessage(), "Input Error", JOptionPane.ERROR_MESSAGE);
             }
         }
     }
@@ -199,23 +272,23 @@ public class StudentManagementGUI extends JFrame {
     // Update Student Dialog
     private void showUpdateStudentDialog() {
         int selectedRow = studentTable.getSelectedRow();
-        if (selectedRow == -1) {
+        if(selectedRow == -1) {
             showStatus("Please select a student to update.");
             JOptionPane.showMessageDialog(this, "Select a student from the table first.", "No Selection", JOptionPane.WARNING_MESSAGE);
             return;
         }
-        int rollNum = (int) tableModel.getValueAt(selectedRow, 0);
-        String currentName = (String) tableModel.getValueAt(selectedRow, 1);
-        String currentClg = (String) tableModel.getValueAt(selectedRow, 2);
-        String currentCity = (String) tableModel.getValueAt(selectedRow, 3);
-        String currentPerc = tableModel.getValueAt(selectedRow, 4).toString();
+        int rollNum = (int)tableModel.getValueAt(selectedRow,0);
+        String currentName = (String)tableModel.getValueAt(selectedRow,1);
+        String currentClg = (String)tableModel.getValueAt(selectedRow,2);
+        String currentCity = (String)tableModel.getValueAt(selectedRow,3);
+        String currentPerc = tableModel.getValueAt(selectedRow,4).toString();
 
         JTextField nameField = new JTextField(currentName);
         JTextField clgField = new JTextField(currentClg);
         JTextField cityField = new JTextField(currentCity);
         JTextField percField = new JTextField(currentPerc);
 
-        JPanel panel = new JPanel(new GridLayout(0, 1, 8, 7));
+        JPanel panel = new JPanel(new GridLayout(0,1,8,7));
         panel.add(new JLabel("Name:"));
         panel.add(nameField);
         panel.add(new JLabel("College:"));
@@ -225,26 +298,26 @@ public class StudentManagementGUI extends JFrame {
         panel.add(new JLabel("Percentage:"));
         panel.add(percField);
 
-        int result = JOptionPane.showConfirmDialog(this, panel, "Update Student", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        int result = JOptionPane.showConfirmDialog(this,panel,"Update Student",JOptionPane.OK_CANCEL_OPTION,JOptionPane.PLAIN_MESSAGE);
 
-        if (result == JOptionPane.OK_OPTION) {
+        if(result == JOptionPane.OK_OPTION) {
             try {
                 String name = nameField.getText().trim();
                 String clg = clgField.getText().trim();
                 String city = cityField.getText().trim();
                 double perc = Double.parseDouble(percField.getText().trim());
-                if (name.isEmpty() || clg.isEmpty() || city.isEmpty()) throw new IllegalArgumentException("All fields are required.");
+                if(name.isEmpty() || clg.isEmpty() || city.isEmpty()) throw new IllegalArgumentException("All fields are required.");
 
                 dao.update(rollNum, name, 1, null);
                 dao.update(rollNum, clg, 2, null);
                 dao.update(rollNum, city, 3, null);
                 dao.update(rollNum, Double.toString(perc), 4, null);
 
-                showStatus("Student \"" + name + "\" updated successfully!");
+                showStatus("Student \""+name+"\" updated successfully!");
                 refreshStudentTable();
-            } catch (Exception ex) {
+            } catch(Exception ex) {
                 showStatus("Invalid input. Please check your entries.");
-                JOptionPane.showMessageDialog(this, "Invalid input: " + ex.getMessage(), "Input Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Invalid input: "+ex.getMessage(), "Input Error", JOptionPane.ERROR_MESSAGE);
             }
         }
     }
@@ -252,20 +325,21 @@ public class StudentManagementGUI extends JFrame {
     // Delete Selected Student
     private void deleteSelectedStudent() {
         int selectedRow = studentTable.getSelectedRow();
-        if (selectedRow == -1) {
+        if(selectedRow == -1) {
             showStatus("Please select a student to delete.");
             JOptionPane.showMessageDialog(this, "Select a student from the table first.", "No Selection", JOptionPane.WARNING_MESSAGE);
             return;
         }
-        int rollNum = (int) tableModel.getValueAt(selectedRow, 0);
-        String name = (String) tableModel.getValueAt(selectedRow, 1);
+        int rollNum = (int)tableModel.getValueAt(selectedRow, 0);
+        String name = (String)tableModel.getValueAt(selectedRow, 1);
 
-        int confirm = JOptionPane.showConfirmDialog(this, "Are you sure you want to delete \"" + name + "\"?", "Delete Confirmation", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+        int confirm = JOptionPane.showConfirmDialog(this, "Are you sure you want to delete \""+name+"\"?",
+                "Delete Confirmation", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
 
-        if (confirm == JOptionPane.YES_OPTION) {
+        if(confirm == JOptionPane.YES_OPTION) {
             boolean deleted = dao.delete(rollNum);
-            if (deleted) {
-                showStatus("Student \"" + name + "\" deleted.");
+            if(deleted) {
+                showStatus("Student \""+name+"\" deleted.");
                 refreshStudentTable();
             } else {
                 showStatus("Delete failed. Student not found.");
@@ -276,24 +350,24 @@ public class StudentManagementGUI extends JFrame {
     private void refreshStudentTable() {
         tableModel.setRowCount(0);
         List<Student> students = getAllStudentsForTable();
-        for (Student s : students) {
+        for(Student s : students) {
             tableModel.addRow(new Object[]{
-                    s.getRollNum(),
-                    s.getName(),
-                    s.getClgName(),
-                    s.getCity(),
-                    String.format("%.2f", s.getPercentage())
+                s.getRollNum(),
+                s.getName(),
+                s.getClgName(),
+                s.getCity(),
+                String.format("%.2f", s.getPercentage())
             });
         }
     }
 
     private List<Student> getAllStudentsForTable() {
-        if (dao instanceof StudentDao) {
+        if(dao instanceof StudentDao) {
             try {
                 java.lang.reflect.Field f = StudentDao.class.getDeclaredField("students");
                 f.setAccessible(true);
-                return new ArrayList<>((List<Student>) f.get(dao));
-            } catch (Exception e) {
+                return new ArrayList<>((List<Student>)f.get(dao));
+            } catch(Exception e) {
                 return new ArrayList<>();
             }
         }
@@ -301,7 +375,7 @@ public class StudentManagementGUI extends JFrame {
     }
 
     private void showStatus(String text) {
-        statusLabel.setText(" " + text);
+        statusLabel.setText(" "+text);
     }
 
     public static void main(String[] args) {
