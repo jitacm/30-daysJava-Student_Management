@@ -91,7 +91,7 @@ public class LoginDialog extends JDialog {
         // Login button triggers login
         loginBtn.addActionListener(e -> doLogin.run());
 
-        // Cancel button cancels login
+       
         cancelBtn.addActionListener(e -> {
             succeeded = false;
             dispose();
