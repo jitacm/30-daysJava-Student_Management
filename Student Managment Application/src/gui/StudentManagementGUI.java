@@ -28,8 +28,9 @@ public class StudentManagementGUI extends JFrame {
         setTitle("Student Management Application");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(900, 540);
+        setMinimumSize(new Dimension(700, 400)); // Optional, minimum size
         setLocationRelativeTo(null);
-        setResizable(false);
+        setResizable(true);  // Changed to true for resizable window
 
         JPanel mainPanel = new JPanel(new BorderLayout(20, 20));
         mainPanel.setBorder(new EmptyBorder(25, 25, 25, 25));
@@ -69,13 +70,12 @@ public class StudentManagementGUI extends JFrame {
         // Search Panel
         JPanel searchPanel = new JPanel();
         JTextField searchField = new JTextField(20);
-        // Removed criteria dropdown for simplified search bar
         searchPanel.add(new JLabel("Search:"));
         searchPanel.add(searchField);
         mainPanel.add(searchPanel, BorderLayout.NORTH);
 
         // Table to display students
-        tableModel = new DefaultTableModel(new Object[]{"Roll No", "Name", "College", "City", "Percentage"}, 0) {
+        tableModel = new DefaultTableModel(new Object[] { "Roll No", "Name", "College", "City", "Percentage" }, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
@@ -145,22 +145,16 @@ public class StudentManagementGUI extends JFrame {
         addButton.addActionListener(this::showAddStudentDialog);
         showButton.addActionListener(e -> {
             refreshStudentTable();
-            showStatus("Student list refreshed.");
+            fadeStatus("Student list refreshed.");
         });
         updateButton.addActionListener(e -> showUpdateStudentDialog());
         deleteButton.addActionListener(e -> deleteSelectedStudent());
 
         // Search filter implementation: update table as user types
         searchField.getDocument().addDocumentListener(new DocumentListener() {
-            public void changedUpdate(DocumentEvent e) {
-                filter();
-            }
-            public void removeUpdate(DocumentEvent e) {
-                filter();
-            }
-            public void insertUpdate(DocumentEvent e) {
-                filter();
-            }
+            public void changedUpdate(DocumentEvent e) { filter(); }
+            public void removeUpdate(DocumentEvent e) { filter(); }
+            public void insertUpdate(DocumentEvent e) { filter(); }
             public void filter() {
                 String query = searchField.getText().toLowerCase();
 
@@ -178,12 +172,12 @@ public class StudentManagementGUI extends JFrame {
 
                 tableModel.setRowCount(0);
                 for (Student s : filtered) {
-                    tableModel.addRow(new Object[]{
-                            s.getRollNum(),
-                            s.getName(),
-                            s.getClgName(),
-                            s.getCity(),
-                            String.format("%.2f", s.getPercentage())
+                    tableModel.addRow(new Object[] {
+                        s.getRollNum(),
+                        s.getName(),
+                        s.getClgName(),
+                        s.getCity(),
+                        String.format("%.2f", s.getPercentage())
                     });
                 }
             }
@@ -233,13 +227,20 @@ public class StudentManagementGUI extends JFrame {
         }
     }
 
-    // Add Student Dialog
+    // Add Student Dialog with Enter key navigation
     private void showAddStudentDialog(ActionEvent e) {
         JTextField nameField = new JTextField();
         JTextField clgField = new JTextField();
         JTextField cityField = new JTextField();
         JTextField percField = new JTextField();
-        JPanel panel = new JPanel(new GridLayout(0,1,8,7));
+
+        // Enter key focus navigation
+        nameField.addActionListener(ae -> clgField.requestFocusInWindow());
+        clgField.addActionListener(ae -> cityField.requestFocusInWindow());
+        cityField.addActionListener(ae -> percField.requestFocusInWindow());
+        // Optional: Perc field Enter key could trigger OK option but omitted here for simplicity
+
+        JPanel panel = new JPanel(new GridLayout(0, 1, 8, 7));
         panel.add(new JLabel("Name:"));
         panel.add(nameField);
         panel.add(new JLabel("College:"));
@@ -249,46 +250,56 @@ public class StudentManagementGUI extends JFrame {
         panel.add(new JLabel("Percentage:"));
         panel.add(percField);
 
-        int result = JOptionPane.showConfirmDialog(this, panel, "Add New Student", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        int result = JOptionPane.showConfirmDialog(this, panel, "Add New Student",
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
 
-        if(result == JOptionPane.OK_OPTION) {
+        if (result == JOptionPane.OK_OPTION) {
             try {
                 String name = nameField.getText().trim();
                 String clg = clgField.getText().trim();
                 String city = cityField.getText().trim();
                 double perc = Double.parseDouble(percField.getText().trim());
-                if(name.isEmpty() || clg.isEmpty() || city.isEmpty()) throw new IllegalArgumentException("All fields are required.");
+                if (name.isEmpty() || clg.isEmpty() || city.isEmpty())
+                    throw new IllegalArgumentException("All fields are required.");
                 Student s = new Student(name, clg, city, perc);
                 dao.insertStudent(s);
-                showStatus("Student \""+name+"\" added successfully!");
+                fadeStatus("Student \"" + name + "\" added successfully!");
                 refreshStudentTable();
-            } catch(Exception ex) {
-                showStatus("Invalid input. Please check your entries.");
-                JOptionPane.showMessageDialog(this, "Invalid input: "+ex.getMessage(), "Input Error", JOptionPane.ERROR_MESSAGE);
+            } catch (Exception ex) {
+                fadeStatus("Invalid input. Please check your entries.");
+                JOptionPane.showMessageDialog(this, "Invalid input: " + ex.getMessage(),
+                        "Input Error", JOptionPane.ERROR_MESSAGE);
             }
         }
     }
 
-    // Update Student Dialog
+    // Update Student Dialog with Enter key navigation
     private void showUpdateStudentDialog() {
         int selectedRow = studentTable.getSelectedRow();
-        if(selectedRow == -1) {
-            showStatus("Please select a student to update.");
-            JOptionPane.showMessageDialog(this, "Select a student from the table first.", "No Selection", JOptionPane.WARNING_MESSAGE);
+        if (selectedRow == -1) {
+            fadeStatus("Please select a student to update.");
+            JOptionPane.showMessageDialog(this, "Select a student from the table first.",
+                    "No Selection", JOptionPane.WARNING_MESSAGE);
             return;
         }
-        int rollNum = (int)tableModel.getValueAt(selectedRow,0);
-        String currentName = (String)tableModel.getValueAt(selectedRow,1);
-        String currentClg = (String)tableModel.getValueAt(selectedRow,2);
-        String currentCity = (String)tableModel.getValueAt(selectedRow,3);
-        String currentPerc = tableModel.getValueAt(selectedRow,4).toString();
+        int rollNum = (int) tableModel.getValueAt(selectedRow, 0);
+        String currentName = (String) tableModel.getValueAt(selectedRow, 1);
+        String currentClg = (String) tableModel.getValueAt(selectedRow, 2);
+        String currentCity = (String) tableModel.getValueAt(selectedRow, 3);
+        String currentPerc = tableModel.getValueAt(selectedRow, 4).toString();
 
         JTextField nameField = new JTextField(currentName);
         JTextField clgField = new JTextField(currentClg);
         JTextField cityField = new JTextField(currentCity);
         JTextField percField = new JTextField(currentPerc);
 
-        JPanel panel = new JPanel(new GridLayout(0,1,8,7));
+        // Enter key focus navigation
+        nameField.addActionListener(ae -> clgField.requestFocusInWindow());
+        clgField.addActionListener(ae -> cityField.requestFocusInWindow());
+        cityField.addActionListener(ae -> percField.requestFocusInWindow());
+        // Perc field Enter key could trigger OK option (optional)
+
+        JPanel panel = new JPanel(new GridLayout(0, 1, 8, 7));
         panel.add(new JLabel("Name:"));
         panel.add(nameField);
         panel.add(new JLabel("College:"));
@@ -298,26 +309,29 @@ public class StudentManagementGUI extends JFrame {
         panel.add(new JLabel("Percentage:"));
         panel.add(percField);
 
-        int result = JOptionPane.showConfirmDialog(this,panel,"Update Student",JOptionPane.OK_CANCEL_OPTION,JOptionPane.PLAIN_MESSAGE);
+        int result = JOptionPane.showConfirmDialog(this, panel, "Update Student",
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
 
-        if(result == JOptionPane.OK_OPTION) {
+        if (result == JOptionPane.OK_OPTION) {
             try {
                 String name = nameField.getText().trim();
                 String clg = clgField.getText().trim();
                 String city = cityField.getText().trim();
                 double perc = Double.parseDouble(percField.getText().trim());
-                if(name.isEmpty() || clg.isEmpty() || city.isEmpty()) throw new IllegalArgumentException("All fields are required.");
+                if (name.isEmpty() || clg.isEmpty() || city.isEmpty())
+                    throw new IllegalArgumentException("All fields are required.");
 
                 dao.update(rollNum, name, 1, null);
                 dao.update(rollNum, clg, 2, null);
                 dao.update(rollNum, city, 3, null);
                 dao.update(rollNum, Double.toString(perc), 4, null);
 
-                showStatus("Student \""+name+"\" updated successfully!");
+                fadeStatus("Student \"" + name + "\" updated successfully!");
                 refreshStudentTable();
-            } catch(Exception ex) {
-                showStatus("Invalid input. Please check your entries.");
-                JOptionPane.showMessageDialog(this, "Invalid input: "+ex.getMessage(), "Input Error", JOptionPane.ERROR_MESSAGE);
+            } catch (Exception ex) {
+                fadeStatus("Invalid input. Please check your entries.");
+                JOptionPane.showMessageDialog(this, "Invalid input: " + ex.getMessage(),
+                        "Input Error", JOptionPane.ERROR_MESSAGE);
             }
         }
     }
@@ -325,24 +339,26 @@ public class StudentManagementGUI extends JFrame {
     // Delete Selected Student
     private void deleteSelectedStudent() {
         int selectedRow = studentTable.getSelectedRow();
-        if(selectedRow == -1) {
-            showStatus("Please select a student to delete.");
-            JOptionPane.showMessageDialog(this, "Select a student from the table first.", "No Selection", JOptionPane.WARNING_MESSAGE);
+        if (selectedRow == -1) {
+            fadeStatus("Please select a student to delete.");
+            JOptionPane.showMessageDialog(this, "Select a student from the table first.",
+                    "No Selection", JOptionPane.WARNING_MESSAGE);
             return;
         }
-        int rollNum = (int)tableModel.getValueAt(selectedRow, 0);
-        String name = (String)tableModel.getValueAt(selectedRow, 1);
+        int rollNum = (int) tableModel.getValueAt(selectedRow, 0);
+        String name = (String) tableModel.getValueAt(selectedRow, 1);
 
-        int confirm = JOptionPane.showConfirmDialog(this, "Are you sure you want to delete \""+name+"\"?",
+        int confirm = JOptionPane.showConfirmDialog(this,
+                "Are you sure you want to delete \"" + name + "\"?",
                 "Delete Confirmation", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
 
-        if(confirm == JOptionPane.YES_OPTION) {
+        if (confirm == JOptionPane.YES_OPTION) {
             boolean deleted = dao.delete(rollNum);
-            if(deleted) {
-                showStatus("Student \""+name+"\" deleted.");
+            if (deleted) {
+                fadeStatus("Student \"" + name + "\" deleted.");
                 refreshStudentTable();
             } else {
-                showStatus("Delete failed. Student not found.");
+                fadeStatus("Delete failed. Student not found.");
             }
         }
     }
@@ -350,8 +366,8 @@ public class StudentManagementGUI extends JFrame {
     private void refreshStudentTable() {
         tableModel.setRowCount(0);
         List<Student> students = getAllStudentsForTable();
-        for(Student s : students) {
-            tableModel.addRow(new Object[]{
+        for (Student s : students) {
+            tableModel.addRow(new Object[] {
                 s.getRollNum(),
                 s.getName(),
                 s.getClgName(),
@@ -362,20 +378,36 @@ public class StudentManagementGUI extends JFrame {
     }
 
     private List<Student> getAllStudentsForTable() {
-        if(dao instanceof StudentDao) {
+        if (dao instanceof StudentDao) {
             try {
                 java.lang.reflect.Field f = StudentDao.class.getDeclaredField("students");
                 f.setAccessible(true);
-                return new ArrayList<>((List<Student>)f.get(dao));
-            } catch(Exception e) {
+                return new ArrayList<>((List<Student>) f.get(dao));
+            } catch (Exception e) {
                 return new ArrayList<>();
             }
         }
         return new ArrayList<>();
     }
 
-    private void showStatus(String text) {
-        statusLabel.setText(" "+text);
+    // Replace showStatus with fadeStatus for animated message appearance
+    private void fadeStatus(String message) {
+        statusLabel.setText(" " + message);
+        // Start transparent
+        statusLabel.setForeground(new Color(13, 58, 113, 0));
+        Timer timer = new Timer(30, null);
+        timer.addActionListener(new ActionListener() {
+            int alpha = 0;
+            public void actionPerformed(ActionEvent e) {
+                alpha += 25;
+                if (alpha >= 255) {
+                    alpha = 255;
+                    timer.stop();
+                }
+                statusLabel.setForeground(new Color(13, 58, 113, alpha));
+            }
+        });
+        timer.start();
     }
 
     public static void main(String[] args) {
