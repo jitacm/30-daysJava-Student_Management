@@ -8,7 +8,7 @@ public class LoginDialog extends JDialog {
 
     public LoginDialog(Frame parent) {
         super(parent, "User Login", true);
-        
+
         // Create panel with padding and background color
         JPanel panel = new JPanel(new GridBagLayout());
         panel.setBackground(new Color(245, 245, 245));
@@ -36,12 +36,14 @@ public class LoginDialog extends JDialog {
         cancelBtn.setFocusPainted(false);
 
         // Layout setup
-        gbc.gridx = 0; gbc.gridy = 0;
+        gbc.gridx = 0;
+        gbc.gridy = 0;
         panel.add(userLabel, gbc);
         gbc.gridx = 1;
         panel.add(userField, gbc);
 
-        gbc.gridx = 0; gbc.gridy = 1;
+        gbc.gridx = 0;
+        gbc.gridy = 1;
         panel.add(passLabel, gbc);
         gbc.gridx = 1;
         panel.add(passField, gbc);
@@ -51,7 +53,9 @@ public class LoginDialog extends JDialog {
         buttonsPanel.add(loginBtn);
         buttonsPanel.add(cancelBtn);
 
-        gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 2;
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        gbc.gridwidth = 2;
         panel.add(buttonsPanel, gbc);
 
         getContentPane().add(panel);
@@ -59,8 +63,8 @@ public class LoginDialog extends JDialog {
         setResizable(false);
         setLocationRelativeTo(parent);
 
-        // Button actions
-        loginBtn.addActionListener(e -> {
+        // Login logic method 
+        Runnable doLogin = () -> {
             String user = userField.getText();
             String pass = new String(passField.getPassword());
             if ("admin".equals(user) && "admin".equals(pass)) {
@@ -73,10 +77,21 @@ public class LoginDialog extends JDialog {
                         JOptionPane.ERROR_MESSAGE);
                 userField.setText("");
                 passField.setText("");
+                userField.requestFocusInWindow();  // Reset focus to username for retry
                 succeeded = false;
             }
-        });
+        };
 
+        // When Enter is pressed in Username field -> Move focus to Password field (do NOT login)
+        userField.addActionListener(e -> passField.requestFocusInWindow());
+
+        // When Enter is pressed in Password field -> Trigger login
+        passField.addActionListener(e -> doLogin.run());
+
+        // Login button triggers login
+        loginBtn.addActionListener(e -> doLogin.run());
+
+       
         cancelBtn.addActionListener(e -> {
             succeeded = false;
             dispose();
