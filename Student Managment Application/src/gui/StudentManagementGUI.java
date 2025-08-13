@@ -56,6 +56,11 @@ public class StudentManagementGUI extends JFrame {
         RoundedButton updateButton = new RoundedButton("Update Student", new Color(255, 193, 7));
         RoundedButton deleteButton = new RoundedButton("Delete Student", new Color(220, 53, 69));
 
+        // --- NEW BUTTONS FOR EXPORT ---
+        RoundedButton exportCsvButton = new RoundedButton("Export to CSV", new Color(76, 175, 80));
+        RoundedButton generatePdfButton = new RoundedButton("Generate PDF", new Color(255, 87, 34));
+        // --- END NEW BUTTONS ---
+
         sidePanel.add(addButton);
         sidePanel.add(Box.createRigidArea(new Dimension(0, 18)));
         sidePanel.add(updateButton);
@@ -63,6 +68,12 @@ public class StudentManagementGUI extends JFrame {
         sidePanel.add(deleteButton);
         sidePanel.add(Box.createRigidArea(new Dimension(0, 18)));
         sidePanel.add(showButton);
+        sidePanel.add(Box.createRigidArea(new Dimension(0, 18)));
+        // --- ADD NEW BUTTONS TO PANEL ---
+        sidePanel.add(exportCsvButton);
+        sidePanel.add(Box.createRigidArea(new Dimension(0, 18)));
+        sidePanel.add(generatePdfButton);
+        // --- END ADDING NEW BUTTONS ---
         sidePanel.add(Box.createVerticalGlue());
 
         mainPanel.add(sidePanel, BorderLayout.WEST);
@@ -149,6 +160,10 @@ public class StudentManagementGUI extends JFrame {
         });
         updateButton.addActionListener(e -> showUpdateStudentDialog());
         deleteButton.addActionListener(e -> deleteSelectedStudent());
+        // --- NEW ACTION LISTENERS ---
+        exportCsvButton.addActionListener(e -> exportToCsv());
+        generatePdfButton.addActionListener(e -> generatePdf());
+        // --- END NEW ACTION LISTENERS ---
 
         // Search filter implementation: update table as user types
         searchField.getDocument().addDocumentListener(new DocumentListener() {
@@ -362,6 +377,48 @@ public class StudentManagementGUI extends JFrame {
             }
         }
     }
+
+    // --- NEW METHODS FOR EXPORT FUNCTIONALITY ---
+    private void exportToCsv() {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("Export Student Data to CSV");
+        fileChooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("CSV Files (*.csv)", "csv"));
+        int userSelection = fileChooser.showSaveDialog(this);
+        if (userSelection == JFileChooser.APPROVE_OPTION) {
+            java.io.File fileToSave = fileChooser.getSelectedFile();
+            if (!fileToSave.getName().toLowerCase().endsWith(".csv")) {
+                fileToSave = new java.io.File(fileToSave.getAbsolutePath() + ".csv");
+            }
+            try {
+                ExportUtil.exportToCsv(getAllStudentsForTable(), fileToSave);
+                fadeStatus("Student data exported to CSV successfully.");
+            } catch (Exception ex) {
+                fadeStatus("Error exporting data to CSV.");
+                JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage(), "Export Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
+    private void generatePdf() {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("Generate Student Report PDF");
+        fileChooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("PDF Files (*.pdf)", "pdf"));
+        int userSelection = fileChooser.showSaveDialog(this);
+        if (userSelection == JFileChooser.APPROVE_OPTION) {
+            java.io.File fileToSave = fileChooser.getSelectedFile();
+            if (!fileToSave.getName().toLowerCase().endsWith(".pdf")) {
+                fileToSave = new java.io.File(fileToSave.getAbsolutePath() + ".pdf");
+            }
+            try {
+                ExportUtil.generatePdfReport(getAllStudentsForTable(), fileToSave);
+                fadeStatus("PDF report generated successfully.");
+            } catch (Exception ex) {
+                fadeStatus("Error generating PDF report.");
+                JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage(), "PDF Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+    // --- END NEW METHODS ---
 
     private void refreshStudentTable() {
         tableModel.setRowCount(0);
