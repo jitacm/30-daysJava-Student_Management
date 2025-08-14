@@ -35,6 +35,60 @@ public class ExportUtil {
         }
     }
 
+    public static void exportStatisticalReport(Map<String, Object> report, File file) throws Exception {
+    Document document = new Document();
+    PdfWriter.getInstance(document, new java.io.FileOutputStream(file));
+    document.open();
+
+    // Title
+    Font titleFont = new Font(Font.FontFamily.HELVETICA, 20, Font.BOLD, BaseColor.DARK_GRAY);
+    Paragraph title = new Paragraph("Statistical Report", titleFont);
+    title.setAlignment(Element.ALIGN_CENTER);
+    title.setSpacingAfter(20f);
+    document.add(title);
+
+    // Summary statistics
+    int totalStudents = (Integer) report.get("totalStudents");
+    double passRate = (Double) report.get("passRate");
+    double failRate = (Double) report.get("failRate");
+
+    document.add(new Paragraph("Summary Statistics:", new Font(Font.FontFamily.HELVETICA, 14, Font.BOLD)));
+    document.add(new Paragraph("Total Students: " + totalStudents));
+    document.add(new Paragraph("Pass Rate: " + String.format("%.2f%%", passRate)));
+    document.add(new Paragraph("Fail Rate: " + String.format("%.2f%%", failRate)));
+    document.add(new Paragraph("\nClass Ranking:", new Font(Font.FontFamily.HELVETICA, 14, Font.BOLD)));
+
+    // Class ranking table
+    PdfPTable table = new PdfPTable(5);
+    table.setWidthPercentage(100);
+    table.setSpacingBefore(10f);
+    table.setSpacingAfter(10f);
+
+    // Add headers
+    Stream.of("Rank", "Roll No", "Name", "College", "Percentage")
+        .forEach(columnTitle -> {
+            PdfPCell header = new PdfPCell();
+            header.setBackgroundColor(BaseColor.LIGHT_GRAY);
+            header.setPhrase(new Phrase(columnTitle));
+            header.setHorizontalAlignment(Element.ALIGN_CENTER);
+            table.addCell(header);
+        });
+
+    // Add student ranking data
+    List<Student> rankedStudents = (List<Student>) report.get("classRanking");
+    int rank = 1;
+    for (Student s : rankedStudents) {
+        table.addCell(String.valueOf(rank++));
+        table.addCell(String.valueOf(s.getRollNum()));
+        table.addCell(s.getName());
+        table.addCell(s.getClgName());
+        table.addCell(String.format("%.2f", s.getPercentage()));
+    }
+
+    document.add(table);
+    document.close();
+}
+    
     // --- PDF Report Generation Logic ---
     public static void generatePdfReport(List<Student> students, File file) throws Exception {
         Document document = new Document();
