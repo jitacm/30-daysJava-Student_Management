@@ -151,6 +151,27 @@ public class StudentDao implements StudentDaoInterface {
         return students;
     }
 
+    public Map<String, Object> getStatisticalReport() {
+    Map<String, Object> report = new HashMap<>();
+    List<Student> students = getAllStudents();
+
+    // Class ranking
+    List<Student> rankedStudents = students.stream()
+        .sorted(Comparator.comparingDouble(Student::getPercentage).reversed())
+        .collect(Collectors.toList());
+
+    // Pass/fail rates
+    long passCount = students.stream().filter(s -> s.getPercentage() >= 40).count();
+    long failCount = students.size() - passCount;
+
+    report.put("classRanking", rankedStudents);
+    report.put("passRate", (double) passCount / students.size() * 100);
+    report.put("failRate", (double) failCount / students.size() * 100);
+    report.put("totalStudents", students.size());
+
+    return report;
+}
+    
     @Override
     public boolean showStudentById(int roll) {
         if (con == null) return false;
@@ -165,4 +186,5 @@ public class StudentDao implements StudentDaoInterface {
         }
         return false;
     }
+
 }
