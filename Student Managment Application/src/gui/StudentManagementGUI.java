@@ -17,50 +17,62 @@ import java.util.List;
 import java.util.ArrayList;
 
 public class StudentManagementGUI extends JFrame {
-    private StudentDaoInterface dao;
+    private StudentDao dao;
     private DefaultTableModel tableModel;
     private JTable studentTable;
     private JLabel statusLabel;
+    private JPanel cardsPanel; // This will hold the main view and the dashboard
+    private CardLayout cardLayout; // Layout for switching panels
+    private DashboardPanel dashboardPanel;
 
     public StudentManagementGUI() {
         dao = new StudentDao();
-
+        
         setTitle("Student Management Application");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(900, 540);
-        setMinimumSize(new Dimension(700, 400)); // Optional, minimum size
+        setMinimumSize(new Dimension(700, 400));
         setLocationRelativeTo(null);
-        setResizable(true);  // Changed to true for resizable window
+        setResizable(true);
 
         JPanel mainPanel = new JPanel(new BorderLayout(20, 20));
         mainPanel.setBorder(new EmptyBorder(25, 25, 25, 25));
         mainPanel.setBackground(new Color(240, 245, 255));
 
-        // Header label
         JLabel heading = new JLabel("Student Management Application", JLabel.CENTER);
         heading.setFont(new Font("Segoe UI", Font.BOLD, 28));
         heading.setForeground(new Color(13, 58, 113));
         JPanel headingPanel = new JPanel(new BorderLayout());
         headingPanel.setBackground(mainPanel.getBackground());
         headingPanel.add(heading, BorderLayout.CENTER);
-        mainPanel.add(headingPanel, BorderLayout.NORTH);
+        
+        JPanel topPanel = new JPanel(new BorderLayout());
+        topPanel.setBackground(mainPanel.getBackground());
+        topPanel.add(headingPanel, BorderLayout.NORTH);
+        
+        JPanel searchPanel = new JPanel();
+        searchPanel.setBackground(mainPanel.getBackground());
+        JTextField searchField = new JTextField(20);
+        searchPanel.add(new JLabel("Search:"));
+        searchPanel.add(searchField);
+        topPanel.add(searchPanel, BorderLayout.SOUTH);
+        mainPanel.add(topPanel, BorderLayout.NORTH);
 
-        // Sidebar with buttons
         JPanel sidePanel = new JPanel();
         sidePanel.setLayout(new BoxLayout(sidePanel, BoxLayout.Y_AXIS));
         sidePanel.setBackground(mainPanel.getBackground());
         sidePanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
+        RoundedButton dashboardButton = new RoundedButton("Dashboard", new Color(128, 128, 128));
         RoundedButton addButton = new RoundedButton("Add Student", new Color(33, 150, 243));
         RoundedButton showButton = new RoundedButton("Show All Students", new Color(30, 136, 229));
         RoundedButton updateButton = new RoundedButton("Update Student", new Color(255, 193, 7));
         RoundedButton deleteButton = new RoundedButton("Delete Student", new Color(220, 53, 69));
-
-        // --- NEW BUTTONS FOR EXPORT ---
         RoundedButton exportCsvButton = new RoundedButton("Export to CSV", new Color(76, 175, 80));
         RoundedButton generatePdfButton = new RoundedButton("Generate PDF", new Color(255, 87, 34));
-        // --- END NEW BUTTONS ---
 
+        sidePanel.add(dashboardButton);
+        sidePanel.add(Box.createRigidArea(new Dimension(0, 18)));
         sidePanel.add(addButton);
         sidePanel.add(Box.createRigidArea(new Dimension(0, 18)));
         sidePanel.add(updateButton);
@@ -69,23 +81,19 @@ public class StudentManagementGUI extends JFrame {
         sidePanel.add(Box.createRigidArea(new Dimension(0, 18)));
         sidePanel.add(showButton);
         sidePanel.add(Box.createRigidArea(new Dimension(0, 18)));
-        // --- ADD NEW BUTTONS TO PANEL ---
         sidePanel.add(exportCsvButton);
         sidePanel.add(Box.createRigidArea(new Dimension(0, 18)));
         sidePanel.add(generatePdfButton);
-        // --- END ADDING NEW BUTTONS ---
         sidePanel.add(Box.createVerticalGlue());
 
         mainPanel.add(sidePanel, BorderLayout.WEST);
 
-        // Search Panel
-        JPanel searchPanel = new JPanel();
-        JTextField searchField = new JTextField(20);
-        searchPanel.add(new JLabel("Search:"));
-        searchPanel.add(searchField);
-        mainPanel.add(searchPanel, BorderLayout.NORTH);
+        // Main content area with CardLayout
+        cardLayout = new CardLayout();
+        cardsPanel = new JPanel(cardLayout);
 
-        // Table to display students
+        // Panel for the Student Table
+        JPanel tablePanel = new JPanel(new BorderLayout());
         tableModel = new DefaultTableModel(new Object[] { "Roll No", "Name", "College", "City", "Percentage" }, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -94,14 +102,11 @@ public class StudentManagementGUI extends JFrame {
         };
 
         studentTable = new JTable(tableModel);
-        // Sorting disabled by not setting row sorter
         studentTable.setRowHeight(32);
         studentTable.setFont(new Font("Segoe UI", Font.PLAIN, 15));
         studentTable.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 16));
         studentTable.getTableHeader().setBackground(new Color(220, 220, 220));
         studentTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-
-        // Disable column reordering and remove sorting arrows from UI
         studentTable.getTableHeader().setReorderingAllowed(false);
         studentTable.getTableHeader().setDefaultRenderer(new DefaultTableCellRenderer() {
             @Override
@@ -117,7 +122,6 @@ public class StudentManagementGUI extends JFrame {
             }
         });
 
-        // Zebra striping & center align percentage and roll columns
         studentTable.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
@@ -140,9 +144,15 @@ public class StudentManagementGUI extends JFrame {
         JScrollPane scrollPane = new JScrollPane(studentTable);
         scrollPane.setBorder(BorderFactory.createTitledBorder(BorderFactory.createLineBorder(new Color(33, 150, 243), 2),
                 "Student List", 0, 0, new Font("Segoe UI", Font.BOLD, 16), new Color(33, 150, 243)));
-        mainPanel.add(scrollPane, BorderLayout.CENTER);
+        tablePanel.add(scrollPane, BorderLayout.CENTER);
 
-        // Status bar
+        // Initialize and add the Dashboard Panel
+        dashboardPanel = new DashboardPanel(dao);
+        
+        cardsPanel.add(tablePanel, "Table");
+        cardsPanel.add(dashboardPanel, "Dashboard");
+        mainPanel.add(cardsPanel, BorderLayout.CENTER);
+
         statusLabel = new JLabel(" Ready");
         statusLabel.setFont(new Font("Segoe UI", Font.ITALIC, 14));
         statusLabel.setForeground(new Color(13, 58, 113));
@@ -153,27 +163,30 @@ public class StudentManagementGUI extends JFrame {
         mainPanel.add(statusBar, BorderLayout.SOUTH);
 
         // Button actions
+        dashboardButton.addActionListener(e -> {
+            dashboardPanel.updateDashboard(); // Update before showing
+            cardLayout.show(cardsPanel, "Dashboard");
+            fadeStatus("Switched to Dashboard.");
+        });
+        
         addButton.addActionListener(this::showAddStudentDialog);
         showButton.addActionListener(e -> {
+            cardLayout.show(cardsPanel, "Table");
             refreshStudentTable();
             fadeStatus("Student list refreshed.");
         });
         updateButton.addActionListener(e -> showUpdateStudentDialog());
         deleteButton.addActionListener(e -> deleteSelectedStudent());
-        // --- NEW ACTION LISTENERS ---
         exportCsvButton.addActionListener(e -> exportToCsv());
         generatePdfButton.addActionListener(e -> generatePdf());
-        // --- END NEW ACTION LISTENERS ---
 
-        // Search filter implementation: update table as user types
         searchField.getDocument().addDocumentListener(new DocumentListener() {
             public void changedUpdate(DocumentEvent e) { filter(); }
             public void removeUpdate(DocumentEvent e) { filter(); }
             public void insertUpdate(DocumentEvent e) { filter(); }
             public void filter() {
                 String query = searchField.getText().toLowerCase();
-
-                List<Student> allStudents = getAllStudentsForTable();
+                List<Student> allStudents = dao.getAllStudents();
                 List<Student> filtered = new ArrayList<>();
 
                 for (Student s : allStudents) {
@@ -184,7 +197,6 @@ public class StudentManagementGUI extends JFrame {
                         filtered.add(s);
                     }
                 }
-
                 tableModel.setRowCount(0);
                 for (Student s : filtered) {
                     tableModel.addRow(new Object[] {
@@ -200,8 +212,9 @@ public class StudentManagementGUI extends JFrame {
 
         setContentPane(mainPanel);
     }
+    
+    // The rest of the methods remain the same
 
-    // Rounded button class with hover animation
     static class RoundedButton extends JButton {
         private final Color bgColor;
         private final Color hoverColor;
@@ -241,20 +254,17 @@ public class StudentManagementGUI extends JFrame {
             super.paintComponent(g);
         }
     }
-
-    // Add Student Dialog with Enter key navigation
+    
     private void showAddStudentDialog(ActionEvent e) {
         JTextField nameField = new JTextField();
         JTextField clgField = new JTextField();
         JTextField cityField = new JTextField();
         JTextField percField = new JTextField();
 
-        // Enter key focus navigation
         nameField.addActionListener(ae -> clgField.requestFocusInWindow());
         clgField.addActionListener(ae -> cityField.requestFocusInWindow());
         cityField.addActionListener(ae -> percField.requestFocusInWindow());
-        // Optional: Perc field Enter key could trigger OK option but omitted here for simplicity
-
+        
         JPanel panel = new JPanel(new GridLayout(0, 1, 8, 7));
         panel.add(new JLabel("Name:"));
         panel.add(nameField);
@@ -277,9 +287,13 @@ public class StudentManagementGUI extends JFrame {
                 if (name.isEmpty() || clg.isEmpty() || city.isEmpty())
                     throw new IllegalArgumentException("All fields are required.");
                 Student s = new Student(name, clg, city, perc);
-                dao.insertStudent(s);
-                fadeStatus("Student \"" + name + "\" added successfully!");
-                refreshStudentTable();
+                boolean success = dao.insertStudent(s);
+                if (success) {
+                    fadeStatus("Student \"" + name + "\" added successfully!");
+                    refreshStudentTable();
+                } else {
+                    fadeStatus("Failed to add student. Check database connection.");
+                }
             } catch (Exception ex) {
                 fadeStatus("Invalid input. Please check your entries.");
                 JOptionPane.showMessageDialog(this, "Invalid input: " + ex.getMessage(),
@@ -288,7 +302,6 @@ public class StudentManagementGUI extends JFrame {
         }
     }
 
-    // Update Student Dialog with Enter key navigation
     private void showUpdateStudentDialog() {
         int selectedRow = studentTable.getSelectedRow();
         if (selectedRow == -1) {
@@ -308,12 +321,10 @@ public class StudentManagementGUI extends JFrame {
         JTextField cityField = new JTextField(currentCity);
         JTextField percField = new JTextField(currentPerc);
 
-        // Enter key focus navigation
         nameField.addActionListener(ae -> clgField.requestFocusInWindow());
         clgField.addActionListener(ae -> cityField.requestFocusInWindow());
         cityField.addActionListener(ae -> percField.requestFocusInWindow());
-        // Perc field Enter key could trigger OK option (optional)
-
+        
         JPanel panel = new JPanel(new GridLayout(0, 1, 8, 7));
         panel.add(new JLabel("Name:"));
         panel.add(nameField);
@@ -335,14 +346,15 @@ public class StudentManagementGUI extends JFrame {
                 double perc = Double.parseDouble(percField.getText().trim());
                 if (name.isEmpty() || clg.isEmpty() || city.isEmpty())
                     throw new IllegalArgumentException("All fields are required.");
+                
+                boolean success = dao.update(rollNum, name, clg, city, perc);
 
-                dao.update(rollNum, name, 1, null);
-                dao.update(rollNum, clg, 2, null);
-                dao.update(rollNum, city, 3, null);
-                dao.update(rollNum, Double.toString(perc), 4, null);
-
-                fadeStatus("Student \"" + name + "\" updated successfully!");
-                refreshStudentTable();
+                if (success) {
+                    fadeStatus("Student \"" + name + "\" updated successfully!");
+                    refreshStudentTable();
+                } else {
+                    fadeStatus("Failed to update student. Check database connection.");
+                }
             } catch (Exception ex) {
                 fadeStatus("Invalid input. Please check your entries.");
                 JOptionPane.showMessageDialog(this, "Invalid input: " + ex.getMessage(),
@@ -351,7 +363,6 @@ public class StudentManagementGUI extends JFrame {
         }
     }
 
-    // Delete Selected Student
     private void deleteSelectedStudent() {
         int selectedRow = studentTable.getSelectedRow();
         if (selectedRow == -1) {
@@ -378,7 +389,6 @@ public class StudentManagementGUI extends JFrame {
         }
     }
 
-    // --- NEW METHODS FOR EXPORT FUNCTIONALITY ---
     private void exportToCsv() {
         JFileChooser fileChooser = new JFileChooser();
         fileChooser.setDialogTitle("Export Student Data to CSV");
@@ -390,7 +400,7 @@ public class StudentManagementGUI extends JFrame {
                 fileToSave = new java.io.File(fileToSave.getAbsolutePath() + ".csv");
             }
             try {
-                ExportUtil.exportToCsv(getAllStudentsForTable(), fileToSave);
+                ExportUtil.exportToCsv(dao.getAllStudents(), fileToSave);
                 fadeStatus("Student data exported to CSV successfully.");
             } catch (Exception ex) {
                 fadeStatus("Error exporting data to CSV.");
@@ -410,7 +420,7 @@ public class StudentManagementGUI extends JFrame {
                 fileToSave = new java.io.File(fileToSave.getAbsolutePath() + ".pdf");
             }
             try {
-                ExportUtil.generatePdfReport(getAllStudentsForTable(), fileToSave);
+                ExportUtil.generatePdfReport(dao.getAllStudents(), fileToSave);
                 fadeStatus("PDF report generated successfully.");
             } catch (Exception ex) {
                 fadeStatus("Error generating PDF report.");
@@ -418,11 +428,10 @@ public class StudentManagementGUI extends JFrame {
             }
         }
     }
-    // --- END NEW METHODS ---
 
     private void refreshStudentTable() {
         tableModel.setRowCount(0);
-        List<Student> students = getAllStudentsForTable();
+        List<Student> students = dao.getAllStudents();
         for (Student s : students) {
             tableModel.addRow(new Object[] {
                 s.getRollNum(),
@@ -434,23 +443,8 @@ public class StudentManagementGUI extends JFrame {
         }
     }
 
-    private List<Student> getAllStudentsForTable() {
-        if (dao instanceof StudentDao) {
-            try {
-                java.lang.reflect.Field f = StudentDao.class.getDeclaredField("students");
-                f.setAccessible(true);
-                return new ArrayList<>((List<Student>) f.get(dao));
-            } catch (Exception e) {
-                return new ArrayList<>();
-            }
-        }
-        return new ArrayList<>();
-    }
-
-    // Replace showStatus with fadeStatus for animated message appearance
     private void fadeStatus(String message) {
         statusLabel.setText(" " + message);
-        // Start transparent
         statusLabel.setForeground(new Color(13, 58, 113, 0));
         Timer timer = new Timer(30, null);
         timer.addActionListener(new ActionListener() {
@@ -466,7 +460,7 @@ public class StudentManagementGUI extends JFrame {
         });
         timer.start();
     }
-
+    
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             StudentManagementGUI frame = new StudentManagementGUI();

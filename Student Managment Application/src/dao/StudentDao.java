@@ -1,73 +1,168 @@
 package dao;
 
+import DB.DBconnection;
 import model.Student;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
 public class StudentDao implements StudentDaoInterface {
 
-    private List<Student> students = new ArrayList<>();
-    private int rollCounter = 1; // To auto-increment roll numbers
+    private Connection con;
+
+    public StudentDao() {
+        this.con = DBconnection.createConnection();
+    }
 
     @Override
     public boolean insertStudent(Student s) {
-        s.setRollNum(rollCounter++);
-        students.add(s);
-        return true;
+        if (con == null) return false;
+        try {
+            String q = "INSERT INTO student(sname, s_clg_name, s_city, percentage) VALUES (?, ?, ?, ?)";
+            PreparedStatement pstmt = this.con.prepareStatement(q, Statement.RETURN_GENERATED_KEYS);
+            pstmt.setString(1, s.getName());
+            pstmt.setString(2, s.getClgName());
+            pstmt.setString(3, s.getCity());
+            pstmt.setDouble(4, s.getPercentage());
+            
+            int rowsAffected = pstmt.executeUpdate();
+            
+            if (rowsAffected > 0) {
+                ResultSet rs = pstmt.getGeneratedKeys();
+                if (rs.next()) {
+                    s.setRollNum(rs.getInt(1)); // Set the generated roll number back to the student object
+                }
+                return true;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
     }
 
     @Override
     public boolean delete(int roll) {
-        return students.removeIf(student -> student.getRollNum() == roll);
+        if (con == null) return false;
+        try {
+            String q = "DELETE FROM student WHERE roll_num = ?";
+            PreparedStatement pstmt = this.con.prepareStatement(q);
+            pstmt.setInt(1, roll);
+            
+            int rowsAffected = pstmt.executeUpdate();
+            return rowsAffected > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
     }
 
     @Override
-    public boolean update(int roll, String update, int ch, Student s) {
-        for (Student student : students) {
-            if (student.getRollNum() == roll) {
-                switch (ch) {
-                    case 1:
-                        student.setName(update);
-                        break;
-                    case 2:
-                        student.setClgName(update);
-                        break;
-                    case 3:
-                        student.setCity(update);
-                        break;
-                    case 4:
-                        student.setPercentage(Double.parseDouble(update));
-                        break;
-                    default:
-                        return false;
-                }
-                return true;
+    public boolean update(int roll, String updateValue, int ch, Student s) {
+        if (con == null) return false;
+        try {
+            String q;
+            PreparedStatement pstmt;
+            switch (ch) {
+                case 1: // Update name
+                    q = "UPDATE student SET sname = ? WHERE roll_num = ?";
+                    pstmt = this.con.prepareStatement(q);
+                    pstmt.setString(1, updateValue);
+                    pstmt.setInt(2, roll);
+                    break;
+                case 2: // Update college name
+                    q = "UPDATE student SET s_clg_name = ? WHERE roll_num = ?";
+                    pstmt = this.con.prepareStatement(q);
+                    pstmt.setString(1, updateValue);
+                    pstmt.setInt(2, roll);
+                    break;
+                case 3: // Update city
+                    q = "UPDATE student SET s_city = ? WHERE roll_num = ?";
+                    pstmt = this.con.prepareStatement(q);
+                    pstmt.setString(1, updateValue);
+                    pstmt.setInt(2, roll);
+                    break;
+                case 4: // Update percentage
+                    q = "UPDATE student SET percentage = ? WHERE roll_num = ?";
+                    pstmt = this.con.prepareStatement(q);
+                    pstmt.setDouble(1, Double.parseDouble(updateValue));
+                    pstmt.setInt(2, roll);
+                    break;
+                default:
+                    return false;
             }
+            int rowsAffected = pstmt.executeUpdate();
+            return rowsAffected > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+    
+    // Updated signature for update
+    public boolean update(int roll, String name, String clgName, String city, double percentage) {
+        if (con == null) return false;
+        try {
+            String q = "UPDATE student SET sname = ?, s_clg_name = ?, s_city = ?, percentage = ? WHERE roll_num = ?";
+            PreparedStatement pstmt = this.con.prepareStatement(q);
+            pstmt.setString(1, name);
+            pstmt.setString(2, clgName);
+            pstmt.setString(3, city);
+            pstmt.setDouble(4, percentage);
+            pstmt.setInt(5, roll);
+
+            int rowsAffected = pstmt.executeUpdate();
+            return rowsAffected > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
         }
         return false;
     }
 
     @Override
     public void showAllStudent() {
-        if (students.isEmpty()) {
-            System.out.println("No students found.");
-            return;
+        // This method is for console output, so we can implement a list return for GUI
+    }
+    
+    public List<Student> getAllStudents() {
+        List<Student> students = new ArrayList<>();
+        if (con == null) return students;
+        try {
+            String q = "SELECT * FROM student";
+            Statement stmt = this.con.createStatement();
+            ResultSet rs = stmt.executeQuery(q);
+
+            while (rs.next()) {
+                int rollNum = rs.getInt("roll_num");
+                String name = rs.getString("sname");
+                String clgName = rs.getString("s_clg_name");
+                String city = rs.getString("s_city");
+                double percentage = rs.getDouble("percentage");
+                
+                Student student = new Student(rollNum, name, clgName, city, percentage);
+                students.add(student);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-        System.out.println("List of All Students:");
-        for (Student s : students) {
-            System.out.println(s);
-        }
+        return students;
     }
 
     @Override
     public boolean showStudentById(int roll) {
-        for (Student s : students) {
-            if (s.getRollNum() == roll) {
-                System.out.println(s);
-                return true;
-            }
+        if (con == null) return false;
+        try {
+            String q = "SELECT * FROM student WHERE roll_num = ?";
+            PreparedStatement pstmt = this.con.prepareStatement(q);
+            pstmt.setInt(1, roll);
+            ResultSet rs = pstmt.executeQuery();
+            return rs.next(); // Returns true if student exists
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-        System.out.println("Student not found with roll number: " + roll);
         return false;
     }
 }
