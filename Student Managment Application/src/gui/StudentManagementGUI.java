@@ -15,19 +15,26 @@ import java.awt.*;
 import java.awt.event.*;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 public class StudentManagementGUI extends JFrame {
     private StudentDao dao;
     private DefaultTableModel tableModel;
     private JTable studentTable;
     private JLabel statusLabel;
-    private JPanel cardsPanel; // This will hold the main view and the dashboard
-    private CardLayout cardLayout; // Layout for switching panels
+    private JPanel cardsPanel;
+    private CardLayout cardLayout;
     private DashboardPanel dashboardPanel;
+
+    private JComboBox<String> cityFilter;
+    private JComboBox<String> collegeFilter;
+    private JSlider percentageSlider;
+    private JButton clearFiltersButton;
 
     public StudentManagementGUI() {
         dao = new StudentDao();
-        
+
         setTitle("Student Management Application");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(900, 540);
@@ -45,19 +52,72 @@ public class StudentManagementGUI extends JFrame {
         JPanel headingPanel = new JPanel(new BorderLayout());
         headingPanel.setBackground(mainPanel.getBackground());
         headingPanel.add(heading, BorderLayout.CENTER);
-        
+
         JPanel topPanel = new JPanel(new BorderLayout());
         topPanel.setBackground(mainPanel.getBackground());
         topPanel.add(headingPanel, BorderLayout.NORTH);
-        
+
+        // Search panel
         JPanel searchPanel = new JPanel();
         searchPanel.setBackground(mainPanel.getBackground());
         JTextField searchField = new JTextField(20);
         searchPanel.add(new JLabel("Search:"));
         searchPanel.add(searchField);
         topPanel.add(searchPanel, BorderLayout.SOUTH);
+
+        // Filter panel
+        JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        filterPanel.setBackground(mainPanel.getBackground());
+
+        // City filter
+        List<String> cities = dao.getAllStudents().stream()
+                .map(Student::getCity)
+                .distinct()
+                .collect(Collectors.toList());
+        cityFilter = new JComboBox<>();
+        cityFilter.addItem("All Cities");
+        cities.forEach(cityFilter::addItem);
+        filterPanel.add(new JLabel("City:"));
+        filterPanel.add(cityFilter);
+
+        // College filter
+        List<String> colleges = dao.getAllStudents().stream()
+                .map(Student::getClgName)
+                .distinct()
+                .collect(Collectors.toList());
+        collegeFilter = new JComboBox<>();
+        collegeFilter.addItem("All Colleges");
+        colleges.forEach(collegeFilter::addItem);
+        filterPanel.add(new JLabel("College:"));
+        filterPanel.add(collegeFilter);
+
+        // Percentage range filter
+        percentageSlider = new JSlider(0, 100, 0);
+        percentageSlider.setMajorTickSpacing(20);
+        percentageSlider.setPaintTicks(true);
+        percentageSlider.setPaintLabels(true);
+        percentageSlider.setBackground(mainPanel.getBackground());
+        filterPanel.add(new JLabel("Min Percentage:"));
+        filterPanel.add(percentageSlider);
+
+        // Clear filters button
+        clearFiltersButton = new JButton("Clear Filters");
+        clearFiltersButton.setBackground(new Color(156, 39, 176));
+        clearFiltersButton.setForeground(Color.WHITE);
+        clearFiltersButton.setFocusPainted(false);
+        clearFiltersButton.addActionListener(e -> {
+            cityFilter.setSelectedIndex(0);
+            collegeFilter.setSelectedIndex(0);
+            percentageSlider.setValue(0);
+            searchField.setText("");
+            refreshStudentTable();
+        });
+        filterPanel.add(clearFiltersButton);
+
+        topPanel.add(filterPanel, BorderLayout.CENTER);
         mainPanel.add(topPanel, BorderLayout.NORTH);
 
+        // Side Panel
         JPanel sidePanel = new JPanel();
         sidePanel.setLayout(new BoxLayout(sidePanel, BoxLayout.Y_AXIS));
         sidePanel.setBackground(mainPanel.getBackground());
@@ -70,6 +130,8 @@ public class StudentManagementGUI extends JFrame {
         RoundedButton deleteButton = new RoundedButton("Delete Student", new Color(220, 53, 69));
         RoundedButton exportCsvButton = new RoundedButton("Export to CSV", new Color(76, 175, 80));
         RoundedButton generatePdfButton = new RoundedButton("Generate PDF", new Color(255, 87, 34));
+        RoundedButton exportReportButton = new RoundedButton("Export Statistical Report", new Color(76, 175, 80));
+        RoundedButton viewRankingButton = new RoundedButton("View Class Ranking", new Color(255, 87, 34));
 
         sidePanel.add(dashboardButton);
         sidePanel.add(Box.createRigidArea(new Dimension(0, 18)));
@@ -84,6 +146,10 @@ public class StudentManagementGUI extends JFrame {
         sidePanel.add(exportCsvButton);
         sidePanel.add(Box.createRigidArea(new Dimension(0, 18)));
         sidePanel.add(generatePdfButton);
+        sidePanel.add(Box.createRigidArea(new Dimension(0, 18)));
+        sidePanel.add(exportReportButton);
+        sidePanel.add(Box.createRigidArea(new Dimension(0, 18)));
+        sidePanel.add(viewRankingButton);
         sidePanel.add(Box.createVerticalGlue());
 
         mainPanel.add(sidePanel, BorderLayout.WEST);
@@ -92,9 +158,9 @@ public class StudentManagementGUI extends JFrame {
         cardLayout = new CardLayout();
         cardsPanel = new JPanel(cardLayout);
 
-        // Panel for the Student Table
+        // Table Panel
         JPanel tablePanel = new JPanel(new BorderLayout());
-        tableModel = new DefaultTableModel(new Object[] { "Roll No", "Name", "College", "City", "Percentage" }, 0) {
+        tableModel = new DefaultTableModel(new Object[]{"Roll No", "Name", "College", "City", "Percentage"}, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
@@ -108,51 +174,19 @@ public class StudentManagementGUI extends JFrame {
         studentTable.getTableHeader().setBackground(new Color(220, 220, 220));
         studentTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         studentTable.getTableHeader().setReorderingAllowed(false);
-        studentTable.getTableHeader().setDefaultRenderer(new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
-                                                           boolean hasFocus, int row, int column) {
-                JLabel label = new JLabel(value.toString());
-                label.setFont(new Font("Segoe UI", Font.BOLD, 16));
-                label.setHorizontalAlignment(SwingConstants.CENTER);
-                label.setBackground(new Color(220, 220, 220));
-                label.setOpaque(true);
-                label.setBorder(BorderFactory.createEmptyBorder());
-                return label;
-            }
-        });
-
-        studentTable.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
-                                                           boolean hasFocus, int row, int column) {
-                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                if (!isSelected) {
-                    c.setBackground(row % 2 == 0 ? Color.WHITE : new Color(230, 240, 255));
-                } else {
-                    c.setBackground(new Color(179, 212, 255));
-                }
-                if (column == 0 || column == 4) {
-                    setHorizontalAlignment(SwingConstants.CENTER);
-                } else {
-                    setHorizontalAlignment(SwingConstants.LEFT);
-                }
-                return c;
-            }
-        });
 
         JScrollPane scrollPane = new JScrollPane(studentTable);
         scrollPane.setBorder(BorderFactory.createTitledBorder(BorderFactory.createLineBorder(new Color(33, 150, 243), 2),
                 "Student List", 0, 0, new Font("Segoe UI", Font.BOLD, 16), new Color(33, 150, 243)));
         tablePanel.add(scrollPane, BorderLayout.CENTER);
 
-        // Initialize and add the Dashboard Panel
+        // Dashboard Panel
         dashboardPanel = new DashboardPanel(dao);
-        
         cardsPanel.add(tablePanel, "Table");
         cardsPanel.add(dashboardPanel, "Dashboard");
         mainPanel.add(cardsPanel, BorderLayout.CENTER);
 
+        // Status Bar
         statusLabel = new JLabel(" Ready");
         statusLabel.setFont(new Font("Segoe UI", Font.ITALIC, 14));
         statusLabel.setForeground(new Color(13, 58, 113));
@@ -164,11 +198,11 @@ public class StudentManagementGUI extends JFrame {
 
         // Button actions
         dashboardButton.addActionListener(e -> {
-            dashboardPanel.updateDashboard(); // Update before showing
+            dashboardPanel.updateDashboard();
             cardLayout.show(cardsPanel, "Dashboard");
             fadeStatus("Switched to Dashboard.");
         });
-        
+
         addButton.addActionListener(this::showAddStudentDialog);
         showButton.addActionListener(e -> {
             cardLayout.show(cardsPanel, "Table");
@@ -179,32 +213,47 @@ public class StudentManagementGUI extends JFrame {
         deleteButton.addActionListener(e -> deleteSelectedStudent());
         exportCsvButton.addActionListener(e -> exportToCsv());
         generatePdfButton.addActionListener(e -> generatePdf());
+        exportReportButton.addActionListener(e -> exportStatisticalReport());
+        viewRankingButton.addActionListener(e -> showClassRanking());
 
+        // Search and filter logic
         searchField.getDocument().addDocumentListener(new DocumentListener() {
             public void changedUpdate(DocumentEvent e) { filter(); }
             public void removeUpdate(DocumentEvent e) { filter(); }
             public void insertUpdate(DocumentEvent e) { filter(); }
+
             public void filter() {
                 String query = searchField.getText().toLowerCase();
+                String selectedCity = (String) cityFilter.getSelectedItem();
+                String selectedCollege = (String) collegeFilter.getSelectedItem();
+                int minPercentage = percentageSlider.getValue();
+
                 List<Student> allStudents = dao.getAllStudents();
                 List<Student> filtered = new ArrayList<>();
 
                 for (Student s : allStudents) {
-                    if (s.getName().toLowerCase().contains(query) ||
-                        Integer.toString(s.getRollNum()).contains(query) ||
-                        s.getClgName().toLowerCase().contains(query) ||
-                        s.getCity().toLowerCase().contains(query)) {
+                    boolean matchesSearch = s.getName().toLowerCase().contains(query) ||
+                            Integer.toString(s.getRollNum()).contains(query) ||
+                            s.getClgName().toLowerCase().contains(query) ||
+                            s.getCity().toLowerCase().contains(query);
+
+                    boolean matchesCity = selectedCity.equals("All Cities") || s.getCity().equals(selectedCity);
+                    boolean matchesCollege = selectedCollege.equals("All Colleges") || s.getClgName().equals(selectedCollege);
+                    boolean matchesPercentage = s.getPercentage() >= minPercentage;
+
+                    if (matchesSearch && matchesCity && matchesCollege && matchesPercentage) {
                         filtered.add(s);
                     }
                 }
+
                 tableModel.setRowCount(0);
                 for (Student s : filtered) {
-                    tableModel.addRow(new Object[] {
-                        s.getRollNum(),
-                        s.getName(),
-                        s.getClgName(),
-                        s.getCity(),
-                        String.format("%.2f", s.getPercentage())
+                    tableModel.addRow(new Object[]{
+                            s.getRollNum(),
+                            s.getName(),
+                            s.getClgName(),
+                            s.getCity(),
+                            String.format("%.2f", s.getPercentage())
                     });
                 }
             }
